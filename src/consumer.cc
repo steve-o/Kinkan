@@ -1585,7 +1585,7 @@ kinkan::consumer_t::OnDirectory (
 	)
 {
 	RsslRDMDirectoryMsg response;
-	char buffer[8192];
+	char buffer[16384];
 	RsslBuffer data_buffer = { static_cast<uint32_t> (sizeof (buffer)), buffer };
 	RsslErrorInfo rssl_err_info;
 	RsslRet rc;
