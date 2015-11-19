@@ -31,6 +31,7 @@
 #include "client.hh"
 #include "config.hh"
 #include "deleter.hh"
+#include "kinkan_http_server.hh"
 #include "message_loop.hh"
 
 namespace kinkan
@@ -80,6 +81,7 @@ namespace kinkan
 	class provider_t
 		: public std::enable_shared_from_this<provider_t>
 		, public chromium::MessageLoopForIO
+		, public KinkanHttpServer::Delegate
 	{
 	public:
 		virtual bool WatchFileDescriptor (net::SocketDescriptor fd, bool persistent, Mode mode, FileDescriptorWatcher* controller, Watcher* delegate) override;
@@ -104,6 +106,8 @@ namespace kinkan
 
 		static bool WriteRawClose (uint16_t rwf_version, int32_t token, uint16_t service_id, uint8_t model_type, const chromium::StringPiece& item_name, bool use_attribinfo_in_updates, uint8_t stream_state, uint8_t status_code, const chromium::StringPiece& status_text, void* data, size_t* length);
 		bool SendReply (RsslChannel*const handle, int32_t token, const void* buf, size_t length);
+
+		virtual void CreateInfo(ProviderInfo* info) override;
 
 		static uint8_t rwf_major_version (uint16_t rwf_version) { return rwf_version / 256; }
 		static uint8_t rwf_minor_version (uint16_t rwf_version) { return rwf_version % 256; }
@@ -163,6 +167,9 @@ namespace kinkan
 		std::shared_ptr<upa_t> upa_;
 /* Server socket for new connections */
 		RsslServer* rssl_sock_;
+/* Built in HTTP server. */
+		std::shared_ptr<KinkanHttpServer> server_;
+		std::list<std::weak_ptr<FileDescriptorWatcher>> watch_list_;
 /* This flag is set to false when Run should return. */
 		boost::atomic_bool keep_running_;
 
@@ -180,6 +187,8 @@ namespace kinkan
 
 		client_t::Delegate* request_delegate_;
 		friend client_t;
+		friend chromium::MessageLoopForIO::FileDescriptorWatcher;
+		friend KinkanHttpServer;
 
 /* Reuters Wire Format versions. */
 		boost::atomic_uint16_t min_rwf_version_;

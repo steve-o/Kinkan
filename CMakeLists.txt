@@ -205,6 +205,7 @@ set(cxx-sources
 	src/client.cc
 	src/config.cc
 	src/consumer.cc
+	src/kinkan_http_server.cc
 	src/main.cc
 	src/kinkan.cc
 	src/provider.cc
@@ -226,10 +227,32 @@ link_directories(
 )
 
 #-----------------------------------------------------------------------------
+# source generators
+
+add_custom_command(
+	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/index.html.h
+	COMMAND ${PERL_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/convert_to_macro.pl ${CMAKE_CURRENT_SOURCE_DIR}/htdocs/index.html > ${CMAKE_CURRENT_BINARY_DIR}/index.html.h
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/htdocs/index.html
+)
+add_custom_command(
+	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/poll.js.h
+	COMMAND ${PERL_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/convert_to_macro.pl ${CMAKE_CURRENT_SOURCE_DIR}/htdocs/poll.js > ${CMAKE_CURRENT_BINARY_DIR}/poll.js.h
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/htdocs/poll.js
+)
+
+set(generated-sources
+	${CMAKE_CURRENT_BINARY_DIR}/index.html.h
+	${CMAKE_CURRENT_BINARY_DIR}/poll.js.h
+)
+
+#-----------------------------------------------------------------------------
 # output
 
 add_executable(Kinkan
 	${cxx-sources}
+	${generated-sources}
 	${chromium-sources}
 )
 

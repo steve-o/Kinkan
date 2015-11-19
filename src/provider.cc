@@ -8,11 +8,24 @@
 #include <algorithm>
 #include <utility>
 
-#include <windows.h>
+#ifdef _WIN32
+#	include <winsock2.h>
+#	include <Ws2tcpip.h>
+#	include <Lmcons.h>
+#	include <process.h>
+#else
+#	include <sys/types.h>
+#	include <sys/socket.h>
+#endif
 
 #include "chromium/logging.hh"
 #include "upaostream.hh"
 #include "client.hh"
+
+#ifdef _WIN32
+#	define LOGIN_NAME_MAX	(UNLEN + 1)
+#	define getpid		_getpid
+#endif
 
 /* Reuters Wire Format nomenclature for RDM dictionary names. */
 static const std::string kRdmFieldDictionaryName ("RWFFld");
@@ -112,6 +125,13 @@ kinkan::provider_t::Initialize()
 		rssl_sock_ = s;
 	}
 
+/* temporary race condition setting selector */
+	FD_ZERO (&in_rfds_);
+/* Built in HTTPD server. */
+	server_.reset (new KinkanHttpServer (this, this));
+	if (!(bool)server_ || !server_->Start (7580))
+		return false;
+
 	return true;
 }
 
@@ -206,6 +226,9 @@ kinkan::provider_t::Close()
 	}
 /* 5) Cleanup */
 	clients_.clear();
+
+/* Drop http port. */
+	server_.reset();
 
 /* Closing listening socket. */
 	if (nullptr != rssl_sock_) {
@@ -365,6 +388,72 @@ kinkan::provider_t::SendReply (
 }
 
 void
+kinkan::provider_t::CreateInfo (
+	kinkan::ProviderInfo* info
+	)
+{
+	char http_hostname[NI_MAXHOST];
+	char http_username[LOGIN_NAME_MAX + 1];
+	int rc;
+
+/* hostname */
+	rc = gethostname (http_hostname, sizeof (http_hostname));
+	if (0 != rc) {
+		const int save_errno = WSAGetLastError();
+		char errbuf[1024];
+		FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM,
+				NULL,            /* source */
+                       		save_errno,      /* message id */
+                       		MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),      /* language id */
+                       		(LPTSTR)errbuf,
+                       		sizeof (errbuf),
+                       		NULL);           /* arguments */
+		LOG(ERROR) << "gethostname: { "
+			  "\"errno\": " << save_errno << ""
+			", \"text\": \"" << errbuf << "\""
+			" }";
+// fallback value
+		info->hostname.clear();
+	} else {
+		http_hostname[NI_MAXHOST - 1] = '\0';
+		info->hostname.assign (http_hostname);
+	}
+
+/* username */
+	wchar_t wusername[UNLEN + 1];
+	DWORD nSize = arraysize( wusername );
+	if (!GetUserNameW (wusername, &nSize)) {
+		const DWORD save_errno = GetLastError();
+		char errbuf[1024];
+		FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM,
+				NULL,            /* source */
+                       		save_errno,      /* message id */
+                       		MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),      /* language id */
+                       		(LPTSTR)errbuf,
+                       		sizeof (errbuf),
+                       		NULL);           /* arguments */
+		LOG(ERROR) << "GetUserNameW: { "
+			  "\"errno\": " << save_errno << ""
+			", \"text\": \"" << errbuf << "\""
+			" }";
+// fallback value
+		info->username.clear();
+	} else {
+		WideCharToMultiByte (CP_UTF8, 0, wusername, nSize + 1, http_username, sizeof (http_username), NULL, NULL);
+		info->username.assign (http_username);
+	}
+
+/* pid */
+	info->pid = getpid();
+
+/* clients */
+	info->client_count = connections_.size();
+
+/* app level request count */
+	info->msgs_received = cumulative_stats_[PROVIDER_PC_RSSL_MSGS_RECEIVED];
+}
+
+void
 kinkan::provider_t::Run()
 {
 	DCHECK(keep_running_) << "Quit must have been called outside of Run!";
@@ -375,6 +464,17 @@ kinkan::provider_t::Run()
 	in_nfds_ = out_nfds_ = 0;
 	in_tv_.tv_sec = 0;
 	in_tv_.tv_usec = 1000 * 100;
+
+/* reset any Chromium sockets that are lost from selector */
+	for (auto it = watch_list_.begin();
+		it != watch_list_.end();
+		++it)
+	{
+		if (auto sp = it->lock()) {
+			net::SocketDescriptor fd = sp->event_->first;
+			FD_SET (fd, &in_rfds_);
+		}
+	}
 
 	for (;;) {
 		bool did_work = DoWork();
@@ -519,6 +619,31 @@ kinkan::provider_t::DoWork()
 			++it;
 		}
 	}
+
+/* Chromium sockets, exceptions are ignored. */
+	for (auto it = watch_list_.begin();
+		it != watch_list_.end();)
+	{
+		if (auto sp = it->lock()) {
+			FileDescriptorWatcher* controller = sp.get();
+			net::SocketDescriptor fd = controller->event_->first;
+			if (FD_ISSET (fd, &out_rfds_)) {
+				FD_CLR (fd, &out_rfds_);
+				controller->OnFileCanReadWithoutBlocking (fd, this);
+				did_work = true;
+			}
+			if (FD_ISSET (fd, &out_wfds_)) {
+				FD_CLR (fd, &out_wfds_);
+				controller->OnFileCanWriteWithoutBlocking (fd, this);
+				did_work = true;
+			}
+			++it;
+		} else {
+			auto jt = it++;
+			watch_list_.erase (jt);
+		}
+	}
+
 	return did_work;
 }
 
@@ -537,7 +662,31 @@ kinkan::provider_t::WatchFileDescriptor (
 	DCHECK(delegate);
 	DCHECK(mode == WATCH_READ || mode == WATCH_WRITE || mode == WATCH_READ_WRITE);
 
-	return false;
+	if (mode & WATCH_READ) {
+		FD_SET (fd, &in_rfds_);
+	}
+	if (mode & WATCH_WRITE) {
+		FD_SET (fd, &in_wfds_);
+	}
+
+	std::unique_ptr<FileDescriptorWatcher::event> evt (controller->ReleaseEvent());
+	if (!(bool)evt) {
+		evt.reset (new FileDescriptorWatcher::event (fd, mode));
+	} else {
+		evt->first = fd;
+		evt->second = mode;
+	}
+
+// Add this socket to the list of monitored sockets.
+	watch_list_.emplace_front (std::weak_ptr<FileDescriptorWatcher> (controller->weak_factory_));
+
+// Transfer ownership of evt to controller.
+	controller->Init(evt.release());
+
+	controller->set_watcher (delegate);
+	controller->set_pump (this);
+
+	return true;
 }
 
 struct NullDeleter {template<typename T> void operator()(T*) {} };
@@ -560,7 +709,16 @@ kinkan::provider_t::FileDescriptorWatcher::~FileDescriptorWatcher()
 bool
 kinkan::provider_t::FileDescriptorWatcher::StopWatchingFileDescriptor()
 {
-	return false;
+	event* e = ReleaseEvent();
+	if (nullptr == e) {
+		return true;
+	}
+
+	FD_CLR (e->first, &pump_->in_rfds_);
+	delete e;
+	pump_ = nullptr;
+	watcher_ = nullptr;
+	return true;
 }
 
 void
