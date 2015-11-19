@@ -522,6 +522,85 @@ kinkan::provider_t::DoWork()
 	return did_work;
 }
 
+/* Add a Chromium socket to the message loop monitoring pool */
+bool
+kinkan::provider_t::WatchFileDescriptor (
+	net::SocketDescriptor fd,
+	bool persistent,
+	kinkan::provider_t::Mode mode,
+	kinkan::provider_t::FileDescriptorWatcher* controller,
+	kinkan::provider_t::Watcher* delegate
+	)
+{
+	DCHECK_GE(fd, 0);
+	DCHECK(controller);
+	DCHECK(delegate);
+	DCHECK(mode == WATCH_READ || mode == WATCH_WRITE || mode == WATCH_READ_WRITE);
+
+	return false;
+}
+
+struct NullDeleter {template<typename T> void operator()(T*) {} };
+
+kinkan::provider_t::FileDescriptorWatcher::FileDescriptorWatcher()
+	: event_ (nullptr)
+	, pump_ (nullptr)
+	, watcher_ (nullptr)
+	, weak_factory_ (this, NullDeleter())
+{
+}
+
+kinkan::provider_t::FileDescriptorWatcher::~FileDescriptorWatcher()
+{
+	if (nullptr != event_) {
+		StopWatchingFileDescriptor();
+	}
+}
+
+bool
+kinkan::provider_t::FileDescriptorWatcher::StopWatchingFileDescriptor()
+{
+	return false;
+}
+
+void
+kinkan::provider_t::FileDescriptorWatcher::Init (kinkan::provider_t::FileDescriptorWatcher::event *e)
+{
+	DCHECK(e);
+	DCHECK(!event_);
+
+	event_ = e;
+}
+
+kinkan::provider_t::FileDescriptorWatcher::event*
+kinkan::provider_t::FileDescriptorWatcher::ReleaseEvent()
+{
+	FileDescriptorWatcher::event *e = event_;
+	event_ = nullptr;
+	return e;
+}
+
+void
+kinkan::provider_t::FileDescriptorWatcher::OnFileCanReadWithoutBlocking (
+	net::SocketDescriptor fd,
+	kinkan::provider_t* pump
+	)
+{
+	if (!watcher_)
+		return;
+	watcher_->OnFileCanReadWithoutBlocking (fd);
+}
+
+void
+kinkan::provider_t::FileDescriptorWatcher::OnFileCanWriteWithoutBlocking (
+	net::SocketDescriptor fd,
+	kinkan::provider_t* pump
+	)
+{
+	DCHECK(watcher_);
+	watcher_->OnFileCanWriteWithoutBlocking (fd);
+}
+
 void
 kinkan::provider_t::Quit()
 {

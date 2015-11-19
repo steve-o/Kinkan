@@ -26,10 +26,12 @@
 
 #include "chromium/debug/leak_tracker.hh"
 #include "chromium/strings/string_piece.hh"
+#include "net/socket/socket_descriptor.hh"
 #include "upa.hh"
 #include "client.hh"
 #include "config.hh"
 #include "deleter.hh"
+#include "message_loop.hh"
 
 namespace kinkan
 {
@@ -75,12 +77,13 @@ namespace kinkan
 		PROVIDER_PC_MAX
 	};
 
-	class client_t;
-
-	class provider_t :
-		public std::enable_shared_from_this<provider_t>
+	class provider_t
+		: public std::enable_shared_from_this<provider_t>
+		, public chromium::MessageLoopForIO
 	{
 	public:
+		virtual bool WatchFileDescriptor (net::SocketDescriptor fd, bool persistent, Mode mode, FileDescriptorWatcher* controller, Watcher* delegate) override;
+
 		explicit provider_t (const config_t& config, std::shared_ptr<upa_t> upa, client_t::Delegate* request_delegate);
 		~provider_t();
 

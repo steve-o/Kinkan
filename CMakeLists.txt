@@ -129,21 +129,51 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /d2Zi+")
 
 set(chromium-sources
 # base/
+	src/chromium/base64.cc
 	src/chromium/chromium_switches.cc
 	src/chromium/command_line.cc
 	src/chromium/debug/stack_trace.cc
 	src/chromium/debug/stack_trace_win.cc
+	src/chromium/files/file.cc
 	src/chromium/files/file_util.cc
 	src/chromium/files/file_util_win.cc
+	src/chromium/json/json_writer.cc
+	src/chromium/json/string_escape.cc
+	src/chromium/md5.cc
 	src/chromium/memory/singleton.cc
 	src/chromium/logging.cc
+	src/chromium/sha1_portable.cc
+	src/chromium/strings/string_number_conversions.cc
 	src/chromium/strings/string_piece.cc
 	src/chromium/strings/string_split.cc
 	src/chromium/strings/string_util.cc
+	src/chromium/strings/stringprintf.cc
 	src/chromium/strings/utf_string_conversion_utils.cc
 	src/chromium/synchronization/lock.cc
 	src/chromium/synchronization/lock_impl_win.cc
+	src/chromium/time/time.cc
+	src/chromium/time/time_win.cc
+	src/chromium/values.cc
 	src/chromium/vlog.cc
+# net/
+        src/net/base/ip_endpoint.cc
+        src/net/base/net_errors.cc
+        src/net/base/net_errors_win.cc
+        src/net/base/net_util.cc
+        src/net/http/http_byte_range.cc
+        src/net/http/http_request_headers.cc
+        src/net/http/http_status_code.cc
+        src/net/http/http_util.cc
+        src/net/socket/socket_descriptor.cc
+        src/net/socket/stream_listen_socket.cc
+        src/net/socket/tcp_listen_socket.cc
+        src/net/io_buffer.cc
+# http_server static library
+        src/net/server/http_connection.cc
+        src/net/server/http_server.cc
+        src/net/server/http_server_request_info.cc
+        src/net/server/http_server_response_info.cc
+        src/net/server/web_socket.cc
 # url/
         src/url/gurl.cc
         src/url/url_canon_etc.cc
@@ -162,9 +192,13 @@ set(chromium-sources
         src/url/url_parse_file.cc
         src/url/url_util.cc
 # url/third_party/mozilla/
-	src/googleurl/url_parse.cc
+        src/googleurl/url_parse.cc
 # base/third_party/icu/
 	src/icu/icu_utf.cc
+# base/third_party/nspr/
+	src/nspr/prtime.cc
+# third_party/modp_b64/
+	src/modp_b64/modp_b64.cc
 )
 
 set(cxx-sources
