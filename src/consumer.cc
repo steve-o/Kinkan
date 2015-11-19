@@ -1513,6 +1513,14 @@ kinkan::consumer_t::OnLoginResponse (
 
         cumulative_stats_[CONSUMER_PC_MMT_LOGIN_RECEIVED]++;
 	rc = rsslDecodeRDMLoginMsg (it, msg, &response, &data_buffer, &rssl_err_info);
+	if (RSSL_RET_BUFFER_TOO_SMALL == rc) {
+		LOG(ERROR) << prefix_ << "rsslDecodeRDMLoginMsg: { "
+				  "\"returnCode\": " << static_cast<signed> (rc) << ""
+				", \"enumeration\": \"" << rsslRetCodeToString (rc) << "\""
+				", \"text\": \"" << rsslRetCodeInfo (rc) << "\""
+				" }";
+		return true;
+	}
 	if (RSSL_RET_SUCCESS != rc) {
 		cumulative_stats_[CONSUMER_PC_RSSL_MSGS_MALFORMED]++;
 		LOG(WARNING) << prefix_ << "rsslDecodeRDMLoginMsg: { "
@@ -1597,6 +1605,14 @@ kinkan::consumer_t::OnDirectory (
 
         cumulative_stats_[CONSUMER_PC_MMT_DIRECTORY_RECEIVED]++;
 	rc = rsslDecodeRDMDirectoryMsg (it, msg, &response, &data_buffer, &rssl_err_info);
+	if (RSSL_RET_BUFFER_TOO_SMALL == rc) {
+		LOG(ERROR) << prefix_ << "rsslDecodeRDMDirectoryMsg: { "
+				  "\"returnCode\": " << static_cast<signed> (rc) << ""
+				", \"enumeration\": \"" << rsslRetCodeToString (rc) << "\""
+				", \"text\": \"" << rsslRetCodeInfo (rc) << "\""
+				" }";
+		return true;
+	}
 	if (RSSL_RET_SUCCESS != rc) {
 		cumulative_stats_[CONSUMER_PC_RSSL_MSGS_MALFORMED]++;
 		LOG(WARNING) << prefix_ << "rsslDecodeRDMDirectoryMsg: { "
@@ -1706,6 +1722,14 @@ kinkan::consumer_t::OnDictionary (
 
         cumulative_stats_[CONSUMER_PC_MMT_DICTIONARY_RECEIVED]++;
 	rc = rsslDecodeRDMDictionaryMsg (it, msg, &response, &data_buffer, &rssl_err_info);
+	if (RSSL_RET_BUFFER_TOO_SMALL == rc) {
+		LOG(ERROR) << prefix_ << "rsslDecodeRDMDictionaryMsg: { "
+				  "\"returnCode\": " << static_cast<signed> (rc) << ""
+				", \"enumeration\": \"" << rsslRetCodeToString (rc) << "\""
+				", \"text\": \"" << rsslRetCodeInfo (rc) << "\""
+				" }";
+		return true;
+	}
 	if (RSSL_RET_SUCCESS != rc) {
 		cumulative_stats_[CONSUMER_PC_RSSL_MSGS_MALFORMED]++;
 		LOG(WARNING) << prefix_ << "rsslDecodeRDMDirectoryMsg: { "
