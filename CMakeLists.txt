@@ -133,18 +133,38 @@ set(chromium-sources
 	src/chromium/command_line.cc
 	src/chromium/debug/stack_trace.cc
 	src/chromium/debug/stack_trace_win.cc
-	src/chromium/file_util.cc
-	src/chromium/file_util_win.cc
+	src/chromium/files/file_util.cc
+	src/chromium/files/file_util_win.cc
 	src/chromium/memory/singleton.cc
 	src/chromium/logging.cc
-	src/chromium/string_piece.cc
-	src/chromium/string_split.cc
-	src/chromium/string_util.cc
+	src/chromium/strings/string_piece.cc
+	src/chromium/strings/string_split.cc
+	src/chromium/strings/string_util.cc
+	src/chromium/strings/utf_string_conversion_utils.cc
 	src/chromium/synchronization/lock.cc
 	src/chromium/synchronization/lock_impl_win.cc
 	src/chromium/vlog.cc
+# url/
+        src/url/gurl.cc
+        src/url/url_canon_etc.cc
+        src/url/url_canon_filesystemurl.cc
+        src/url/url_canon_fileurl.cc
+        src/url/url_canon_host.cc
+        src/url/url_canon_internal.cc
+        src/url/url_canon_ip.cc
+        src/url/url_canon_mailtourl.cc
+        src/url/url_canon_path.cc
+        src/url/url_canon_pathurl.cc
+        src/url/url_canon_query.cc
+        src/url/url_canon_stdstring.cc
+        src/url/url_canon_stdurl.cc
+        src/url/url_constants.cc
+        src/url/url_parse_file.cc
+        src/url/url_util.cc
 # url/third_party/mozilla/
 	src/googleurl/url_parse.cc
+# base/third_party/icu/
+	src/icu/icu_utf.cc
 )
 
 set(cxx-sources

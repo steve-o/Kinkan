@@ -5,11 +5,10 @@
 // This file contains utility functions for dealing with the local
 // filesystem.
 
-#ifndef CHROMIUM_FILE_UTIL_HH__
-#define CHROMIUM_FILE_UTIL_HH__
-#pragma once
+#ifndef CHROMIUM_FILES_FILE_UTIL_HH__
+#define CHROMIUM_FILES_FILE_UTIL_HH__
 
-#if defined(OS_WIN)
+#if defined(_WIN32)
 #include <windows.h>
 #elif defined(OS_POSIX)
 #include <sys/stat.h>
@@ -21,11 +20,17 @@
 #include <string>
 #include <memory>
 
+#include "chromium/files/file.hh"
+
 namespace chromium {
 
 // Returns true if the given path exists on the local filesystem,
 // false otherwise.
 bool PathExists(const std::string& path);
+
+// Returns information about the given file path.
+bool GetFileInfo(const std::string& file_path, File::Info* info);
+
 
 }
 
@@ -45,4 +50,4 @@ bool CloseFile(FILE* file);
 
 }  // namespace file_util
 
-#endif  // CHROMIUM_FILE_UTIL_HH__
+#endif  // CHROMIUM_FILES_FILE_UTIL_HH__

@@ -15,9 +15,9 @@
 #include <rtr/rsslPayloadEntry.h>
 
 #include "chromium/command_line.hh"
-#include "chromium/file_util.hh"
+#include "chromium/files/file_util.hh"
 #include "chromium/logging.hh"
-#include "chromium/string_split.hh"
+#include "chromium/strings/string_split.hh"
 #include "upa.hh"
 #include "upaostream.hh"
 #include "unix_epoch.hh"

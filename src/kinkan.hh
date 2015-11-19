@@ -19,7 +19,7 @@
 #include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
-#include "chromium/string_piece.hh"
+#include "chromium/strings/string_piece.hh"
 #include "client.hh"
 #include "consumer.hh"
 #include "provider.hh"
