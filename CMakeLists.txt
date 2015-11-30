@@ -141,7 +141,9 @@ set(chromium-sources
 	src/chromium/json/string_escape.cc
 	src/chromium/md5.cc
 	src/chromium/memory/singleton.cc
+	src/chromium/message_loop/incoming_task_queue.cc
 	src/chromium/logging.cc
+	src/chromium/pending_task.cc
 	src/chromium/sha1_portable.cc
 	src/chromium/strings/string_number_conversions.cc
 	src/chromium/strings/string_piece.cc

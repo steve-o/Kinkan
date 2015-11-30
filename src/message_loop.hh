@@ -1,6 +1,7 @@
 #ifndef CHROMIUM_MESSAGE_LOOP_HH_
 #define CHROMIUM_MESSAGE_LOOP_HH_
 
+#include "chromium/message_loop/incoming_task_queue.hh"
 #include "net/socket/socket_descriptor.hh"
 
 namespace kinkan
@@ -74,6 +75,27 @@ namespace chromium
 		};
 
 		virtual bool WatchFileDescriptor (net::SocketDescriptor fd, bool persistent, Mode mode, FileDescriptorWatcher* controller, Watcher* delegate) = 0;
+
+// The "PostTask" family of methods call the task's Run method asynchronously
+// from within a message loop at some point in the future.
+//
+// With the PostTask variant, tasks are invoked in FIFO order, inter-mixed
+// with normal UI or IO event processing.  With the PostDelayedTask variant,
+// tasks are called after at least approximately 'delay_ms' have elapsed.
+//
+// The MessageLoop takes ownership of the Task, and deletes it after it has
+// been Run().
+//
+// PostTask(from_here, task) is equivalent to
+// PostDelayedTask(from_here, task, 0).
+//
+// NOTE: These methods may be called on any thread.  The Task will be invoked
+// on the thread that executes MessageLoop::Run().
+		void PostTask(const std::function<void()>& task);
+
+		void PostDelayedTask(const std::function<void()>& task, TimeDelta delay);
+
+		std::shared_ptr<internal::IncomingTaskQueue> incoming_task_queue_;
 	};
 
 } /* namespace chromium */
