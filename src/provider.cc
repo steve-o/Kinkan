@@ -304,6 +304,10 @@ kinkan::provider_t::Close()
 		Close (*it);
 	}
 	connections_.clear();
+
+/* Drop self reference for MessagePump */
+	pump_.reset();
+
 	VLOG(3) << "Provider closed.";
 }
 
