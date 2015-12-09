@@ -30,11 +30,15 @@
 #include <rtr/rsslPayloadCache.h>
 
 #include "chromium/debug/leak_tracker.hh"
+#include "chromium/message_loop/message_pump.hh"
 #include "chromium/strings/string_piece.hh"
+#include "net/socket/socket_descriptor.hh"
 #include "upa.hh"
 #include "client.hh"
 #include "config.hh"
 #include "deleter.hh"
+#include "kinkan_http_server.hh"
+#include "message_loop.hh"
 
 namespace kinkan
 {
@@ -147,8 +151,9 @@ namespace kinkan
 		bool is_closed;
 	};
 
-	class consumer_t :
-		public std::enable_shared_from_this<consumer_t>
+	class consumer_t
+		: public std::enable_shared_from_this<consumer_t>
+		, public KinkanHttpServer::ConsumerDelegate
 	{
 	public:
 /* Delegate handles specific behaviour of service subscription status. */
@@ -177,8 +182,8 @@ namespace kinkan
 		bool CreateItemStream (const char* name, std::shared_ptr<item_stream_t> item_stream);
 		bool Resubscribe (RsslChannel* handle);
 
-		static bool WriteRawClose (uint16_t rwf_version, int32_t token, uint16_t service_id, uint8_t model_type, const chromium::StringPiece& item_name, bool use_attribinfo_in_updates, uint8_t stream_state, uint8_t status_code, const chromium::StringPiece& status_text, void* data, size_t* length);
-		bool SendReply (RsslChannel*const handle, int32_t token, const void* buf, size_t length);
+// ConsumerDelegate methods:
+		virtual void CreateInfo(ConsumerInfo* info) override;
 
 		static uint8_t rwf_major_version (uint16_t rwf_version) { return rwf_version / 256; }
 		static uint8_t rwf_minor_version (uint16_t rwf_version) { return rwf_version % 256; }

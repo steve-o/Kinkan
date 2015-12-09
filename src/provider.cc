@@ -86,7 +86,9 @@ kinkan::provider_t::~provider_t()
  * Open RSSL port and listen for incoming connection attempts.
  */
 bool
-kinkan::provider_t::Initialize()
+kinkan::provider_t::Initialize (
+	kinkan::KinkanHttpServer::ConsumerDelegate* consumer_delegate
+	)
 {
 #ifndef NDEBUG
 	RsslBindOptions addr = RSSL_INIT_BIND_OPTS;
@@ -137,7 +139,7 @@ kinkan::provider_t::Initialize()
 /* temporary race condition setting selector */
 	FD_ZERO (&in_rfds_);
 /* Built in HTTPD server. */
-	server_.reset (new KinkanHttpServer (this, this));
+	server_.reset (new KinkanHttpServer (this, consumer_delegate, this));
 	if (!(bool)server_ || !server_->Start (7580))
 		return false;
 

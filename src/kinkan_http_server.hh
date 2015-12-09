@@ -51,15 +51,22 @@ namespace kinkan
 	{
 	public:
 
-		class Delegate {
+		class ConsumerDelegate {
 		public:
-			virtual ~Delegate() {}
+			virtual ~ConsumerDelegate() {}
+
+			virtual void CreateInfo(ConsumerInfo* info) = 0;
+		};
+
+		class ProviderDelegate {
+		public:
+			virtual ~ProviderDelegate() {}
 
 			virtual void CreateInfo(ProviderInfo* info) = 0;
 		};
 
 // Constructor doesn't start server.
-		explicit KinkanHttpServer (chromium::MessageLoopForIO* message_loop_for_io, Delegate* delegate);
+		explicit KinkanHttpServer (chromium::MessageLoopForIO* message_loop_for_io, ConsumerDelegate* consumer_delegate, ProviderDelegate* provider_delegate);
 
 // Destroys the object.
 		virtual ~KinkanHttpServer();
@@ -95,7 +102,8 @@ namespace kinkan
 // Message loop to direct all tasks towards.
 		chromium::MessageLoopForIO* message_loop_for_io_;
 
-		Delegate* delegate_;
+		ConsumerDelegate* consumer_delegate_;
+		ProviderDelegate* provider_delegate_;
 	};
 
 } /* namespace kinkan */

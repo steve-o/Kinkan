@@ -28,11 +28,13 @@ kinkan::ProviderInfo::~ProviderInfo() {
 
 kinkan::KinkanHttpServer::KinkanHttpServer (
 	chromium::MessageLoopForIO* message_loop_for_io,
-	kinkan::KinkanHttpServer::Delegate* delegate
+	kinkan::KinkanHttpServer::ConsumerDelegate* consumer_delegate,
+	kinkan::KinkanHttpServer::ProviderDelegate* provider_delegate
 	)
 	: port_ (0)
 	, message_loop_for_io_ (message_loop_for_io)
-	, delegate_ (delegate)
+	, consumer_delegate_ (consumer_delegate)
+	, provider_delegate_ (provider_delegate)
 {
 }
 
@@ -81,16 +83,7 @@ kinkan::KinkanHttpServer::OnHttpRequest (
 {
 	VLOG(1) << "Processing HTTP request: " << info.path;
 	if (0 == info.path.find ("/json")) {
-#if 0
 		OnJsonRequestUI (connection_id, info);
-#else
-LOG(INFO) << "posting task";
-		message_loop_for_io_->PostTask ([this, connection_id, info]() {
-LOG(INFO) << "running task";
-LOG(INFO) << "connection_id " << connection_id << " " << info.path;
-				OnJsonRequestUI (connection_id, info);
-			});
-#endif
 		return;
 	}
 
@@ -130,7 +123,7 @@ kinkan::KinkanHttpServer::OnWebSocketMessage (
 
 	std::shared_ptr<chromium::DictionaryValue> dict(new chromium::DictionaryValue);
 	ProviderInfo info;
-	delegate_->CreateInfo (&info);
+	provider_delegate_->CreateInfo (&info);
 	dict->SetString("hostname", info.hostname);
 	dict->SetString("username", info.username);
 	dict->SetInteger("pid", info.pid);
@@ -200,7 +193,7 @@ kinkan::KinkanHttpServer::OnJsonRequestUI (
 	if ("info" == command) {
 		chromium::DictionaryValue dict;
 		ProviderInfo info;
-		delegate_->CreateInfo (&info);
+		provider_delegate_->CreateInfo (&info);
 		dict.SetString("hostname", info.hostname);
 		dict.SetString("username", info.username);
 		dict.SetInteger("pid", info.pid);
@@ -260,7 +253,7 @@ std::string
 kinkan::KinkanHttpServer::GetDiscoveryPageHTML() const
 {
 	ProviderInfo info;
-	delegate_->CreateInfo (&info);
+	provider_delegate_->CreateInfo (&info);
 
 	std::string response (WWW_INDEX_HTML);
 	ReplaceFirstSubstringAfterOffset (&response, 0, "%HOSTNAME%", info.hostname);

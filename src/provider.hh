@@ -84,7 +84,7 @@ namespace kinkan
 		: public std::enable_shared_from_this<provider_t>
 		, public chromium::MessageLoopForIO
 		, public chromium::MessagePump
-		, public KinkanHttpServer::Delegate
+		, public KinkanHttpServer::ProviderDelegate
 	{
 	public:
 		virtual bool WatchFileDescriptor (net::SocketDescriptor fd, bool persistent, Mode mode, FileDescriptorWatcher* controller, Watcher* delegate) override;
@@ -92,7 +92,7 @@ namespace kinkan
 		explicit provider_t (const config_t& config, std::shared_ptr<upa_t> upa, client_t::Delegate* request_delegate);
 		~provider_t();
 
-		bool Initialize();
+		bool Initialize (KinkanHttpServer::ConsumerDelegate* consumer_delegate);
 		void Close();
 
 // MessagePump methods:
@@ -113,6 +113,7 @@ namespace kinkan
 		static bool WriteRawClose (uint16_t rwf_version, int32_t token, uint16_t service_id, uint8_t model_type, const chromium::StringPiece& item_name, bool use_attribinfo_in_updates, uint8_t stream_state, uint8_t status_code, const chromium::StringPiece& status_text, void* data, size_t* length);
 		bool SendReply (RsslChannel*const handle, int32_t token, const void* buf, size_t length);
 
+// ProviderDelegate methods:
 		virtual void CreateInfo(ProviderInfo* info) override;
 
 		static uint8_t rwf_major_version (uint16_t rwf_version) { return rwf_version / 256; }

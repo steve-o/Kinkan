@@ -165,12 +165,15 @@ kinkan::kinkan_t::Initialize ()
 
 /* UPA provider. */
 		provider_.reset (new provider_t (config_, upa_, static_cast<client_t::Delegate*> (this)));
-		if (!(bool)provider_ || !provider_->Initialize())
+		if (!(bool)provider_)
 			goto cleanup;
 
 /* UPA consumer. */
 		consumer_.reset (new consumer_t (config_, upa_, static_cast<consumer_t::Delegate*> (this)));
 		if (!(bool)consumer_ || !consumer_->Initialize())
+			goto cleanup;
+
+		if (!provider_->Initialize (consumer_.get()))
 			goto cleanup;
 
 /* Create state for subscribed RIC. */

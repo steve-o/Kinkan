@@ -1281,6 +1281,22 @@ kinkan::consumer_t::Resubscribe (
 }
 
 void
+kinkan::consumer_t::CreateInfo (
+	kinkan::ConsumerInfo* info
+	)
+{
+/* upstream provider name */
+	info->infrastructure_address.assign ("infrastructure_address");
+	info->infrastructure_version.assign ("infrastructure_version");
+
+/* whether consumer is connected, logged in, and active */
+	info->is_active = !is_muted_;
+
+/* app level request count */
+	info->msgs_received = cumulative_stats_[CONSUMER_PC_RSSL_MSGS_RECEIVED];
+}
+
+void
 kinkan::consumer_t::OnActiveReadState (
 	RsslChannel* c
 	)
