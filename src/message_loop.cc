@@ -40,12 +40,12 @@ MessageLoop::~MessageLoop() {
 void MessageLoop::PostTask(
     const std::function<void()>& task) {
   DCHECK((bool)task);
-  incoming_task_queue_->AddToIncomingQueue(task, TimeDelta());
+  incoming_task_queue_->AddToIncomingQueue(task, std::chrono::milliseconds());
 }
 
 void MessageLoop::PostDelayedTask(
     const std::function<void()>& task,
-    TimeDelta delay) {
+    std::chrono::milliseconds delay) {
   DCHECK((bool)task);
   incoming_task_queue_->AddToIncomingQueue(task, delay);
 }
@@ -90,7 +90,7 @@ bool MessageLoop::DeletePendingTasks() {
   while (!work_queue_.empty()) {
     PendingTask pending_task = work_queue_.front();
     work_queue_.pop();
-    if (!pending_task.delayed_run_time.is_null()) {
+    if (pending_task.delayed_run_time > std::chrono::steady_clock::time_point()) {
       // We want to delete delayed tasks in the same order in which they would
       // normally be deleted in case of any funny dependencies between delayed
       // tasks.
@@ -123,18 +123,66 @@ void MessageLoop::ReloadWorkQueue() {
     incoming_task_queue_->ReloadWorkQueue(&work_queue_);
 }
 
-bool MessageLoop::DoWork() {
-  {
-    // Task can't be executed right now.
-    return false;
-  }
+void MessageLoop::ScheduleWork(bool was_empty) {
+  if (was_empty)
+    pump_->ScheduleWork();
 }
 
-bool MessageLoop::DoDelayedWork(TimeTicks* next_delayed_work_time) {
-  {
-    recent_time_ = *next_delayed_work_time = TimeTicks();
+bool MessageLoop::DoWork() {
+  for (;;) {
+    ReloadWorkQueue();
+    if (work_queue_.empty())
+      break;
+
+    // Execute oldest task.
+    do {
+      PendingTask pending_task = work_queue_.front();
+      work_queue_.pop();
+      if (pending_task.delayed_run_time > std::chrono::steady_clock::time_point()) {
+        AddToDelayedWorkQueue(pending_task);
+        // If we changed the topmost task, then it is time to reschedule.
+        if (delayed_work_queue_.top().task.target<void()>() == pending_task.task.target<void()>())
+          pump_->ScheduleDelayedWork(pending_task.delayed_run_time);
+      } else {
+        if (DeferOrRunPendingTask(pending_task))
+          return true;
+      }
+    } while (!work_queue_.empty());
+  }
+
+  // Nothing happened.
+  return false;
+}
+
+bool MessageLoop::DoDelayedWork(std::chrono::steady_clock::time_point* next_delayed_work_time) {
+  if (delayed_work_queue_.empty()) {
+    recent_time_ = *next_delayed_work_time = std::chrono::steady_clock::time_point();
     return false;
   }
+
+  // When we "fall behind," there will be a lot of tasks in the delayed work
+  // queue that are ready to run.  To increase efficiency when we fall behind,
+  // we will only call Time::Now() intermittently, and then process all tasks
+  // that are ready to run before calling it again.  As a result, the more we
+  // fall behind (and have a lot of ready-to-run delayed tasks), the more
+  // efficient we'll be at handling the tasks.
+
+  std::chrono::steady_clock::time_point next_run_time = delayed_work_queue_.top().delayed_run_time;
+  if (next_run_time > recent_time_) {
+    recent_time_ = std::chrono::steady_clock::now();  // Get a better view of Now();
+    if (next_run_time > recent_time_) {
+      *next_delayed_work_time = next_run_time;
+      return false;
+    }
+  }
+
+  PendingTask pending_task = delayed_work_queue_.top();
+  delayed_work_queue_.pop();
+
+  if (!delayed_work_queue_.empty())
+    *next_delayed_work_time = delayed_work_queue_.top().delayed_run_time;
+
+  return DeferOrRunPendingTask(pending_task);
 }
 
 bool MessageLoop::DoIdleWork() {

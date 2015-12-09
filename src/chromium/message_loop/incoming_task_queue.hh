@@ -5,11 +5,11 @@
 #ifndef CHROMIUM_MESSAGE_LOOP_INCOMING_TASK_QUEUE_HH_
 #define CHROMIUM_MESSAGE_LOOP_INCOMING_TASK_QUEUE_HH_
 
+#include <chrono>
 #include <functional>
 
 #include "chromium/pending_task.hh"
 #include "chromium/synchronization/lock.hh"
-#include "chromium/time/time.hh"
 
 namespace chromium {
 
@@ -33,7 +33,7 @@ class IncomingTaskQueue {
   // Returns true if the task was successfully added to the queue, otherwise
   // returns false. In all cases, the ownership of |task| is transferred to the
   // called method.
-  bool AddToIncomingQueue(const std::function<void()>& task, TimeDelta delay);
+  bool AddToIncomingQueue(const std::function<void()>& task, std::chrono::milliseconds delay);
 
   // Loads tasks from the |incoming_queue_| into |*work_queue|. Must be called
   // from the thread that is running the loop.
@@ -44,7 +44,7 @@ class IncomingTaskQueue {
 
  private:
   // Calculates the time at which a PendingTask should run.
-  TimeTicks CalculateDelayedRuntime(TimeDelta delay);
+  std::chrono::steady_clock::time_point CalculateDelayedRuntime(std::chrono::milliseconds delay);
 
   // Adds a task to |incoming_queue_|. The caller retains ownership of
   // |pending_task|, but this function will reset the value of
@@ -53,7 +53,7 @@ class IncomingTaskQueue {
   bool PostPendingTask(PendingTask* pending_task);
 
 #if defined(_WIN32)
-  TimeTicks high_resolution_timer_expiration_;
+  std::chrono::high_resolution_clock::time_point high_resolution_timer_expiration_;
 #endif
 
   // The lock that protects access to |incoming_queue_|, |message_loop_| and

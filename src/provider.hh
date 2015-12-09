@@ -6,6 +6,7 @@
 
 #include <winsock2.h>
 
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <boost/unordered_map.hpp>
@@ -25,6 +26,7 @@
 #include <upa/upa.h>
 
 #include "chromium/debug/leak_tracker.hh"
+#include "chromium/message_loop/message_pump.hh"
 #include "chromium/strings/string_piece.hh"
 #include "net/socket/socket_descriptor.hh"
 #include "upa.hh"
@@ -81,6 +83,7 @@ namespace kinkan
 	class provider_t
 		: public std::enable_shared_from_this<provider_t>
 		, public chromium::MessageLoopForIO
+		, public chromium::MessagePump
 		, public KinkanHttpServer::Delegate
 	{
 	public:
@@ -90,11 +93,14 @@ namespace kinkan
 		~provider_t();
 
 		bool Initialize();
-/* Run the current MessageLoop. This blocks until Quit is called. */
-		void Run();
-/* Quit an earlier call to Run(). */
-		void Quit();
 		void Close();
+
+// MessagePump methods:
+		virtual void Run() override;
+		virtual void Quit() override;
+		virtual void ScheduleWork() override;
+		virtual void ScheduleDelayedWork(const std::chrono::steady_clock::time_point& delayed_work_time) override;
+		void OnWakeup();
 
 		void SetAcceptingRequests (bool accepting_requests) {
 			is_accepting_requests_.store (accepting_requests);
@@ -125,7 +131,7 @@ namespace kinkan
 		}
 
 	private:
-		bool DoWork();
+		bool DoInternalWork();
 
 		void OnConnection (RsslServer* rssl_sock);
 		void RejectConnection (RsslServer* rssl_sock);
@@ -177,6 +183,14 @@ namespace kinkan
 		fd_set in_rfds_, in_wfds_, in_efds_;
 		fd_set out_rfds_, out_wfds_, out_efds_;
 		struct timeval in_tv_, out_tv_;
+
+// The time at which we should call DoDelayedWork.
+		std::chrono::steady_clock::time_point delayed_work_time_;
+
+// ... write end; ScheduleWork() writes a single byte to it
+		net::SocketDescriptor wakeup_pipe_in_;
+// ... read end; OnWakeup reads it and then breaks Run() out of its sleep
+		net::SocketDescriptor wakeup_pipe_out_;
 
 /* UPA connection directory */
 		std::list<RsslChannel*const> connections_;

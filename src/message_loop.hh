@@ -1,6 +1,8 @@
 #ifndef CHROMIUM_MESSAGE_LOOP_HH_
 #define CHROMIUM_MESSAGE_LOOP_HH_
 
+#include <chrono>
+
 #include "chromium/message_loop/incoming_task_queue.hh"
 #include "chromium/message_loop/message_pump.hh"
 #include "net/socket/socket_descriptor.hh"
@@ -45,9 +47,13 @@ namespace chromium
 // on the thread that executes MessageLoop::Run().
 		void PostTask(const std::function<void()>& task);
                 
-		void PostDelayedTask(const std::function<void()>& task, TimeDelta delay);
+		void PostDelayedTask(const std::function<void()>& task, std::chrono::milliseconds delay);
+
+	protected:
+		std::shared_ptr<MessagePump> pump_;
        
 	private: 
+		friend class kinkan::provider_t;
 		friend class internal::IncomingTaskQueue;
 
 // Configures various members for the two constructors.
@@ -75,9 +81,13 @@ namespace chromium
 // empty.
 		void ReloadWorkQueue();
 
+// Wakes up the message pump. Can be called on any thread. The caller is
+// responsible for synchronizing ScheduleWork() calls.
+		void ScheduleWork(bool was_empty);
+
 // MessagePump::Delegate methods:
 		virtual bool DoWork() override;
-		virtual bool DoDelayedWork(TimeTicks* next_delayed_work_time) override;
+		virtual bool DoDelayedWork(std::chrono::steady_clock::time_point* next_delayed_work_time) override;
 		virtual bool DoIdleWork() override;
 
 // A list of tasks that need to be processed by this instance.  Note that
@@ -88,7 +98,7 @@ namespace chromium
 		DelayedTaskQueue delayed_work_queue_;
 
 // A recent snapshot of Time::Now(), used to check delayed_work_queue_.
-		TimeTicks recent_time_;
+		std::chrono::steady_clock::time_point recent_time_;
 
 // A queue of non-nestable tasks that we had to defer because when it came
 // time to execute them we were in a nested message loop.  They will execute

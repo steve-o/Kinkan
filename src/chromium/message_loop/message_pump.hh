@@ -5,11 +5,11 @@
 #ifndef CHROMIUM_MESSAGE_LOOP_MESSAGE_PUMP_HH_
 #define CHROMIUM_MESSAGE_LOOP_MESSAGE_PUMP_HH_
 
+#include <chrono>
+
 #include "chromium/basictypes.hh"
 
 namespace chromium {
-
-class TimeTicks;
 
 class MessagePump {
  public:
@@ -33,7 +33,7 @@ class MessagePump {
     // |next_delayed_work_time| is null (per Time::is_null), then the queue of
     // future delayed work (timer events) is currently empty, and no additional
     // calls to this function need to be scheduled.
-    virtual bool DoDelayedWork(TimeTicks* next_delayed_work_time) = 0;
+    virtual bool DoDelayedWork(std::chrono::steady_clock::time_point* next_delayed_work_time) = 0;
 
     // Called from within Run just before the message pump goes to sleep.
     // Returns true to indicate that idle work was done.
@@ -102,7 +102,7 @@ class MessagePump {
   // pump.  DoWork in particular must never be starved for time slices unless
   // it returns false (meaning it has run out of things to do).
   //
-  virtual void Run(Delegate* delegate) = 0;
+  virtual void Run(/* Delegate* delegate */) = 0;
 
   // Quit immediately from the most recently entered run loop.  This method may
   // only be used on the thread that called Run.
@@ -117,7 +117,7 @@ class MessagePump {
   // Schedule a DoDelayedWork callback to happen at the specified time,
   // cancelling any pending DoDelayedWork callback.  This method may only be
   // used on the thread that called Run.
-  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) = 0;
+  virtual void ScheduleDelayedWork(const std::chrono::steady_clock::time_point& delayed_work_time) = 0;
 };
 
 }  // namespace chromium

@@ -6,7 +6,6 @@
 
 #include "chromium/logging.hh"
 #include "message_loop.hh"
-//#include "base/synchronization/waitable_event.h"
 
 namespace chromium {
 namespace internal {
@@ -18,7 +17,7 @@ IncomingTaskQueue::IncomingTaskQueue(MessageLoop* message_loop)
 
 bool IncomingTaskQueue::AddToIncomingQueue(
     const std::function<void()>& task,
-    TimeDelta delay) {
+    std::chrono::milliseconds delay) {
   AutoLock locked(incoming_queue_lock_);
   PendingTask pending_task(task, CalculateDelayedRuntime(delay));
   return PostPendingTask(&pending_task);
@@ -46,12 +45,12 @@ IncomingTaskQueue::~IncomingTaskQueue() {
   DCHECK(!message_loop_);
 }
 
-TimeTicks IncomingTaskQueue::CalculateDelayedRuntime(TimeDelta delay) {
-  TimeTicks delayed_run_time;
-  if (delay > TimeDelta()) {
-////    delayed_run_time = TimeTicks::Now() + delay;
+std::chrono::steady_clock::time_point IncomingTaskQueue::CalculateDelayedRuntime(std::chrono::milliseconds delay) {
+  std::chrono::steady_clock::time_point delayed_run_time;
+  if (delay.count() > 0) {
+    delayed_run_time = std::chrono::steady_clock::now() + delay;
   } else {
-    DCHECK_EQ(delay.InMilliseconds(), 0) << "delay should not be negative";
+    DCHECK_EQ(delay.count(), 0) << "delay should not be negative";
   }
 
   return delayed_run_time;
@@ -80,7 +79,7 @@ bool IncomingTaskQueue::PostPendingTask(PendingTask* pending_task) {
   pending_task->task = nullptr;
 
   // Wake up the pump.
-////  message_loop_->ScheduleWork(was_empty);
+  message_loop_->ScheduleWork(was_empty);
 
   return true;
 }

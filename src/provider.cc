@@ -47,7 +47,9 @@ kinkan::provider_t::provider_t (
 	service_id_ (1),	// first and only service
 	is_accepting_connections_ (true),
 	is_accepting_requests_ (false),
-	is_pending_directory_update_ (false)
+	is_pending_directory_update_ (false),
+	wakeup_pipe_in_ (net::kInvalidSocket),
+	wakeup_pipe_out_ (net::kInvalidSocket)
 {
 	ZeroMemory (cumulative_stats_, sizeof (cumulative_stats_));
 	ZeroMemory (snap_stats_, sizeof (snap_stats_));
@@ -59,6 +61,13 @@ kinkan::provider_t::~provider_t()
 	Close();
 /* Cleanup RSSL stack. */
 	upa_.reset();
+// MessagePump
+	if (net::kInvalidSocket != wakeup_pipe_in_) {
+		closesocket (wakeup_pipe_in_);
+	}
+	if (net::kInvalidSocket != wakeup_pipe_out_) {
+		closesocket (wakeup_pipe_out_);
+	}
 /* Summary output */
 	using namespace boost::posix_time;
 	auto uptime = second_clock::universal_time() - creation_time_;
@@ -132,6 +141,45 @@ kinkan::provider_t::Initialize()
 	if (!(bool)server_ || !server_->Start (7580))
 		return false;
 
+// MessageLoop 
+	this->pump_ = shared_from_this();
+
+	{
+	        struct sockaddr_in addr;
+	        SOCKET listener;
+	        int sockerr;
+	        int addrlen = sizeof (addr);
+	        unsigned long one = 1;
+	        listener = socket (AF_INET, SOCK_STREAM, 0);
+	        DCHECK (listener != INVALID_SOCKET);
+	        memset (&addr, 0, sizeof (addr));
+	        addr.sin_family = AF_INET;
+	        addr.sin_addr.s_addr = inet_addr ("127.0.0.1");
+	        DCHECK (addr.sin_addr.s_addr != INADDR_NONE);
+	        sockerr = bind (listener, (const struct sockaddr*)&addr, sizeof (addr));
+	        DCHECK (sockerr != SOCKET_ERROR);
+	        sockerr = getsockname (listener, (struct sockaddr*)&addr, &addrlen);
+	        DCHECK (sockerr != SOCKET_ERROR);
+	        sockerr = listen (listener, 1);
+	        DCHECK (sockerr != SOCKET_ERROR);
+	        wakeup_pipe_in_ = WSASocket (AF_INET, SOCK_STREAM, 0, NULL, 0, 0);
+	        DCHECK (wakeup_pipe_in_ != INVALID_SOCKET);
+	        sockerr = connect (wakeup_pipe_in_, (struct sockaddr*)&addr, addrlen);
+	        DCHECK (sockerr != SOCKET_ERROR);
+	        wakeup_pipe_out_ = accept (listener, NULL, NULL);
+	        DCHECK (wakeup_pipe_out_ != INVALID_SOCKET);
+		if (net::SetNonBlocking (wakeup_pipe_in_)) {
+			DLOG(ERROR) << "SetNonBlocking for pipe fd[0] failed, errno: " << WSAGetLastError();
+			return false;
+		}
+		if (net::SetNonBlocking (wakeup_pipe_out_)) {
+			DLOG(ERROR) << "SetNonBlocking for pipe fd[1] failed, errno: " << WSAGetLastError();
+			return false;
+		}
+	        sockerr = closesocket (listener);
+	        DCHECK (sockerr != SOCKET_ERROR);	
+	}
+
 	return true;
 }
 
@@ -164,7 +212,7 @@ kinkan::provider_t::Close()
 		in_tv_.tv_usec = 1000 * 100;
 
 		for (;;) {
-			bool did_work = DoWork();
+			bool did_work = DoInternalWork();
 
 			size_t active_tokens = 0;
 			for (auto it = clients_.begin(); it != clients_.end(); ++it) {
@@ -476,11 +524,30 @@ kinkan::provider_t::Run()
 		}
 	}
 
-	for (;;) {
-		bool did_work = DoWork();
+// MessagePump wakeup events
+	FD_SET (wakeup_pipe_out_, &in_rfds_);
 
+	for (;;) {
+		bool did_work = DoInternalWork();
 		if (!keep_running_)
 			break;
+
+		did_work = DoWork();
+		if (!keep_running_)
+			break;
+
+		std::chrono::steady_clock::time_point next_time;
+		did_work |= DoDelayedWork(&next_time);
+		if (!keep_running_)
+			break;
+
+		if (did_work)
+			continue;
+
+		did_work = DoIdleWork();
+		if (!keep_running_)
+			break;
+
 
 		if (did_work)
 			continue;
@@ -499,7 +566,7 @@ kinkan::provider_t::Run()
 }
 
 bool
-kinkan::provider_t::DoWork()
+kinkan::provider_t::DoInternalWork()
 {
 	bool did_work = false;
 
@@ -618,6 +685,12 @@ kinkan::provider_t::DoWork()
 		} else {
 			++it;
 		}
+	}
+
+// MessagePump wakeup event
+	if (FD_ISSET (wakeup_pipe_out_, &out_rfds_)) {
+		FD_CLR (wakeup_pipe_out_, &out_rfds_);
+		OnWakeup();
 	}
 
 /* Chromium sockets, exceptions are ignored. */
@@ -763,6 +836,39 @@ void
 kinkan::provider_t::Quit()
 {
 	keep_running_ = false;
+}
+
+
+// MessagePump methods:
+void
+kinkan::provider_t::ScheduleWork()
+{
+LOG(INFO) << "ScheduleWork()";
+	char buf = 0;
+	int nwrite = send(wakeup_pipe_in_, &buf, 1, 0);
+	DCHECK(nwrite == 1 || errno == net::kInvalidSocket)
+		<< "[nwrite:" << nwrite << "] [errno:" << errno << "]";
+}
+
+void
+kinkan::provider_t::ScheduleDelayedWork (
+	const std::chrono::steady_clock::time_point& delayed_work_time
+	)
+{
+// We know that we can't be blocked on Wait right now since this method can
+// only be called on the same thread as Run, so we only need to update our
+// record of how long to sleep when we do sleep.
+	delayed_work_time_ = delayed_work_time;
+}
+
+void
+kinkan::provider_t::OnWakeup()
+{
+LOG(INFO) << "OnWakeup()";
+// Remove and discard the wakeup byte.
+	char buf;
+	int nread = recv (wakeup_pipe_out_, &buf, 1, 0);
+	DCHECK_EQ(nread, 1);
 }
 
 /* 7.2. Establish Network Communication.

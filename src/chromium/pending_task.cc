@@ -14,12 +14,11 @@ PendingTask::PendingTask() : sequence_num(-1) {
 
 PendingTask::PendingTask(const std::function<void()>& task)
     : task(task),
-      sequence_num(0),
-      delayed_run_time(TimeTicks()) {
+      sequence_num(0) {
 }
 
 PendingTask::PendingTask(const std::function<void()>& task,
-                         TimeTicks delayed_run_time)
+                         std::chrono::steady_clock::time_point delayed_run_time)
     : task(task),
       sequence_num(0),
       delayed_run_time(delayed_run_time) {

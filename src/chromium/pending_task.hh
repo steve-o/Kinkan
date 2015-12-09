@@ -5,10 +5,9 @@
 #ifndef CHROMIUM_PENDING_TASK_HH_
 #define CHROMIUM_PENDING_TASK_HH_
 
+#include <chrono>
 #include <functional>
 #include <queue>
-
-#include "chromium/time/time.hh"
 
 namespace chromium {
 
@@ -19,7 +18,7 @@ struct PendingTask {
   PendingTask();
 #endif
   PendingTask(const std::function<void()>& task);
-  PendingTask(const std::function<void()>& task, TimeTicks delayed_run_time);
+  PendingTask(const std::function<void()>& task, std::chrono::steady_clock::time_point delayed_run_time);
   ~PendingTask();
 
   // Used to support sorting.
@@ -32,7 +31,7 @@ struct PendingTask {
   int sequence_num;
 
   // The time when the task should be run.
-  TimeTicks delayed_run_time;
+  std::chrono::steady_clock::time_point delayed_run_time;
 };
 
 // Wrapper around std::queue specialized for PendingTask which adds a Swap

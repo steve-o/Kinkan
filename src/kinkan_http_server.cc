@@ -81,10 +81,13 @@ kinkan::KinkanHttpServer::OnHttpRequest (
 {
 	VLOG(1) << "Processing HTTP request: " << info.path;
 	if (0 == info.path.find ("/json")) {
-#ifndef CONFIG_QUEUE_HTTP
+#if 0
 		OnJsonRequestUI (connection_id, info);
 #else
-		message_loop_for_io_->PostTask ([&]() {
+LOG(INFO) << "posting task";
+		message_loop_for_io_->PostTask ([this, connection_id, info]() {
+LOG(INFO) << "running task";
+LOG(INFO) << "connection_id " << connection_id << " " << info.path;
 				OnJsonRequestUI (connection_id, info);
 			});
 #endif
