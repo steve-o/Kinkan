@@ -24,6 +24,7 @@ namespace internal {
 class IncomingTaskQueue {
  public:
   explicit IncomingTaskQueue(MessageLoop* message_loop);
+  virtual ~IncomingTaskQueue();
 
   // Appends a task to the incoming queue. Posting of all tasks is routed though
   // AddToIncomingQueue() or TryAddToIncomingQueue() to make sure that posting
@@ -42,8 +43,6 @@ class IncomingTaskQueue {
   void WillDestroyCurrentMessageLoop();
 
  private:
-  virtual ~IncomingTaskQueue();
-
   // Calculates the time at which a PendingTask should run.
   TimeTicks CalculateDelayedRuntime(TimeDelta delay);
 

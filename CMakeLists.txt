@@ -142,6 +142,7 @@ set(chromium-sources
 	src/chromium/md5.cc
 	src/chromium/memory/singleton.cc
 	src/chromium/message_loop/incoming_task_queue.cc
+	src/chromium/message_loop/message_pump.cc
 	src/chromium/logging.cc
 	src/chromium/pending_task.cc
 	src/chromium/sha1_portable.cc
@@ -209,6 +210,7 @@ set(cxx-sources
 	src/consumer.cc
 	src/kinkan_http_server.cc
 	src/main.cc
+	src/message_loop.cc
 	src/kinkan.cc
 	src/provider.cc
 	src/upa.cc

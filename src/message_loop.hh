@@ -2,6 +2,7 @@
 #define CHROMIUM_MESSAGE_LOOP_HH_
 
 #include "chromium/message_loop/incoming_task_queue.hh"
+#include "chromium/message_loop/message_pump.hh"
 #include "net/socket/socket_descriptor.hh"
 
 namespace kinkan
@@ -13,7 +14,91 @@ class provider_t;
 
 namespace chromium
 {
-	class MessageLoopForIO
+
+// A MessageLoop is used to process events for a particular thread.  There is
+// at most one MessageLoop instance per thread.
+//
+// Events include at a minimum Task instances submitted to PostTask and its
+// variants.
+//
+// NOTE: Unless otherwise specified, a MessageLoop's methods may only be called
+// on the thread where the MessageLoop's Run method executes.
+	class MessageLoop : public MessagePump::Delegate {
+	public:
+		explicit MessageLoop();
+		virtual ~MessageLoop();
+
+// The "PostTask" family of methods call the task's Run method asynchronously
+// from within a message loop at some point in the future.
+//
+// With the PostTask variant, tasks are invoked in FIFO order, inter-mixed
+// with normal UI or IO event processing.  With the PostDelayedTask variant,
+// tasks are called after at least approximately 'delay_ms' have elapsed.
+//
+// The MessageLoop takes ownership of the Task, and deletes it after it has
+// been Run().
+//
+// PostTask(from_here, task) is equivalent to
+// PostDelayedTask(from_here, task, 0).
+//
+// NOTE: These methods may be called on any thread.  The Task will be invoked
+// on the thread that executes MessageLoop::Run().
+		void PostTask(const std::function<void()>& task);
+                
+		void PostDelayedTask(const std::function<void()>& task, TimeDelta delay);
+       
+	private: 
+		friend class internal::IncomingTaskQueue;
+
+// Configures various members for the two constructors.
+		void Init();
+
+// Called to process any delayed non-nestable tasks.
+		bool ProcessNextDelayedNonNestableTask();
+
+// Runs the specified PendingTask.
+		void RunTask(const PendingTask& pending_task);
+
+// Calls RunTask or queues the pending_task on the deferred task list if it
+// cannot be run right now.  Returns true if the task was run.
+		bool DeferOrRunPendingTask(const PendingTask& pending_task);
+
+// Adds the pending task to delayed_work_queue_.
+		void AddToDelayedWorkQueue(const PendingTask& pending_task);
+
+// Delete tasks that haven't run yet without running them.  Used in the
+// destructor to make sure all the task's destructors get called.  Returns
+// true if some work was done.
+		bool DeletePendingTasks();
+
+// Loads tasks from the incoming queue to |work_queue_| if the latter is
+// empty.
+		void ReloadWorkQueue();
+
+// MessagePump::Delegate methods:
+		virtual bool DoWork() override;
+		virtual bool DoDelayedWork(TimeTicks* next_delayed_work_time) override;
+		virtual bool DoIdleWork() override;
+
+// A list of tasks that need to be processed by this instance.  Note that
+// this queue is only accessed (push/pop) by our current thread.
+		TaskQueue work_queue_;
+
+// Contains delayed tasks, sorted by their 'delayed_run_time' property.
+		DelayedTaskQueue delayed_work_queue_;
+
+// A recent snapshot of Time::Now(), used to check delayed_work_queue_.
+		TimeTicks recent_time_;
+
+// A queue of non-nestable tasks that we had to defer because when it came
+// time to execute them we were in a nested message loop.  They will execute
+// once we're out of nested message loops.
+		TaskQueue deferred_non_nestable_work_queue_;
+
+		std::shared_ptr<internal::IncomingTaskQueue> incoming_task_queue_;
+	};
+
+	class MessageLoopForIO : public MessageLoop
 	{
 	public:
 // Used with WatchFileDescriptor to asynchronously monitor the I/O readiness
@@ -75,27 +160,6 @@ namespace chromium
 		};
 
 		virtual bool WatchFileDescriptor (net::SocketDescriptor fd, bool persistent, Mode mode, FileDescriptorWatcher* controller, Watcher* delegate) = 0;
-
-// The "PostTask" family of methods call the task's Run method asynchronously
-// from within a message loop at some point in the future.
-//
-// With the PostTask variant, tasks are invoked in FIFO order, inter-mixed
-// with normal UI or IO event processing.  With the PostDelayedTask variant,
-// tasks are called after at least approximately 'delay_ms' have elapsed.
-//
-// The MessageLoop takes ownership of the Task, and deletes it after it has
-// been Run().
-//
-// PostTask(from_here, task) is equivalent to
-// PostDelayedTask(from_here, task, 0).
-//
-// NOTE: These methods may be called on any thread.  The Task will be invoked
-// on the thread that executes MessageLoop::Run().
-		void PostTask(const std::function<void()>& task);
-
-		void PostDelayedTask(const std::function<void()>& task, TimeDelta delay);
-
-		std::shared_ptr<internal::IncomingTaskQueue> incoming_task_queue_;
 	};
 
 } /* namespace chromium */

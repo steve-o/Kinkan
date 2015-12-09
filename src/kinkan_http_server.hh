@@ -25,6 +25,16 @@ class GURL;
 
 namespace kinkan
 {
+	struct ConsumerInfo {
+		ConsumerInfo();
+		~ConsumerInfo();
+
+		std::string infrastructure_address;	/* e.g. ads2.6.3.L1.linux.rrg 64-bit */
+		std::string infrastructure_version;
+		bool is_active;
+		unsigned msgs_received;
+	};
+
 	struct ProviderInfo {
 		ProviderInfo();
 		~ProviderInfo();
