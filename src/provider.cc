@@ -87,6 +87,7 @@ kinkan::provider_t::~provider_t()
  */
 bool
 kinkan::provider_t::Initialize (
+	chromium::MessageLoop* consumer,
 	kinkan::KinkanHttpServer::ConsumerDelegate* consumer_delegate
 	)
 {
@@ -139,7 +140,7 @@ kinkan::provider_t::Initialize (
 /* temporary race condition setting selector */
 	FD_ZERO (&in_rfds_);
 /* Built in HTTPD server. */
-	server_.reset (new KinkanHttpServer (this, consumer_delegate, this));
+	server_.reset (new KinkanHttpServer (this, consumer, consumer_delegate, this));
 	if (!(bool)server_ || !server_->Start (7580))
 		return false;
 
@@ -849,7 +850,6 @@ kinkan::provider_t::Quit()
 void
 kinkan::provider_t::ScheduleWork()
 {
-LOG(INFO) << "ScheduleWork()";
 	char buf = 0;
 	int nwrite = send(wakeup_pipe_in_, &buf, 1, 0);
 	DCHECK(nwrite == 1 || errno == net::kInvalidSocket)
@@ -870,7 +870,6 @@ kinkan::provider_t::ScheduleDelayedWork (
 void
 kinkan::provider_t::OnWakeup()
 {
-LOG(INFO) << "OnWakeup()";
 // Remove and discard the wakeup byte.
 	char buf;
 	int nread = recv (wakeup_pipe_out_, &buf, 1, 0);

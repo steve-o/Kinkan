@@ -67,7 +67,7 @@ namespace kinkan
 		};
 
 // Constructor doesn't start server.
-		explicit KinkanHttpServer (chromium::MessageLoopForIO* message_loop_for_io, ConsumerDelegate* consumer_delegate, ProviderDelegate* provider_delegate);
+		explicit KinkanHttpServer (chromium::MessageLoopForIO* message_loop_for_io, chromium::MessageLoop* consumer_message_loop, ConsumerDelegate* consumer_delegate, ProviderDelegate* provider_delegate);
 
 // Destroys the object.
 		virtual ~KinkanHttpServer();
@@ -101,6 +101,7 @@ namespace kinkan
 		std::shared_ptr<net::HttpServer> server_;
 
 // Message loop to direct all tasks towards.
+		chromium::MessageLoop* consumer_message_loop_;
 		chromium::MessageLoopForIO* message_loop_for_io_;
 
 		ConsumerDelegate* consumer_delegate_;

@@ -173,7 +173,7 @@ kinkan::kinkan_t::Initialize ()
 		if (!(bool)consumer_ || !consumer_->Initialize())
 			goto cleanup;
 
-		if (!provider_->Initialize (consumer_.get()))
+		if (!provider_->Initialize (consumer_.get(), consumer_.get()))
 			goto cleanup;
 
 /* Create state for subscribed RIC. */

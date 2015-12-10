@@ -10,6 +10,7 @@
 namespace kinkan
 {
 
+class consumer_t;
 class provider_t;
 
 }
@@ -53,6 +54,7 @@ namespace chromium
 		std::shared_ptr<MessagePump> pump_;
        
 	private: 
+		friend class kinkan::consumer_t;
 		friend class kinkan::provider_t;
 		friend class internal::IncomingTaskQueue;
 

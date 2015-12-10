@@ -92,7 +92,7 @@ namespace kinkan
 		explicit provider_t (const config_t& config, std::shared_ptr<upa_t> upa, client_t::Delegate* request_delegate);
 		~provider_t();
 
-		bool Initialize (KinkanHttpServer::ConsumerDelegate* consumer_delegate);
+		bool Initialize (chromium::MessageLoop* consumer, KinkanHttpServer::ConsumerDelegate* consumer_delegate);
 		void Close();
 
 // MessagePump methods:

@@ -39,10 +39,12 @@ kinkan::ProviderInfo::~ProviderInfo() {
 
 kinkan::KinkanHttpServer::KinkanHttpServer (
 	chromium::MessageLoopForIO* message_loop_for_io,
+	chromium::MessageLoop* consumer_message_loop,
 	kinkan::KinkanHttpServer::ConsumerDelegate* consumer_delegate,
 	kinkan::KinkanHttpServer::ProviderDelegate* provider_delegate
 	)
 	: port_ (0)
+	, consumer_message_loop_ (consumer_message_loop)
 	, message_loop_for_io_ (message_loop_for_io)
 	, consumer_delegate_ (consumer_delegate)
 	, provider_delegate_ (provider_delegate)
@@ -131,8 +133,8 @@ kinkan::KinkanHttpServer::OnWebSocketMessage (
 	)
 {
 	std::string response;
-
 	std::shared_ptr<chromium::DictionaryValue> dict(new chromium::DictionaryValue);
+
 	if (data == "p") {
 		ProviderInfo info;
 		provider_delegate_->CreateInfo (&info);
@@ -142,13 +144,21 @@ kinkan::KinkanHttpServer::OnWebSocketMessage (
 		dict->SetInteger("clients", info.client_count);
 		dict->SetInteger("msgs", info.msgs_received);
 	} else if (data == "c") {
-		ConsumerInfo info;
-		consumer_delegate_->CreateInfo (&info);
-		dict->SetString("ip", info.ip);
-		dict->SetString("component", info.component);
-		dict->SetString("app", info.app);
-		dict->SetBoolean("is_active", info.is_active);
-		dict->SetInteger("msgs", info.msgs_received);
+		consumer_message_loop_->PostTask ([this, connection_id]() {
+			std::string message;
+			std::shared_ptr<chromium::DictionaryValue> dict(new chromium::DictionaryValue);
+			ConsumerInfo info;
+			consumer_delegate_->CreateInfo (&info);
+			dict->SetString("ip", info.ip);
+			dict->SetString("component", info.component);
+			dict->SetString("app", info.app);
+			dict->SetBoolean("is_active", info.is_active);
+			dict->SetInteger("msgs", info.msgs_received);
+			chromium::JSONWriter::Write(dict.get(), &message);
+			message_loop_for_io_->PostTask ([this, connection_id, message]() {
+				server_->SendOverWebSocket(connection_id, message);
+			});
+		});
 	}
 	chromium::JSONWriter::Write(dict.get(), &response);
 

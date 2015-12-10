@@ -153,6 +153,8 @@ namespace kinkan
 
 	class consumer_t
 		: public std::enable_shared_from_this<consumer_t>
+		, public chromium::MessageLoop
+		, public chromium::MessagePump
 		, public KinkanHttpServer::ConsumerDelegate
 	{
 	public:
@@ -173,11 +175,14 @@ namespace kinkan
 		~consumer_t();
 
 		bool Initialize();
-/* Run the current MessageLoop. This blocks until Quit is called. */
-		void Run();
-/* Quit an earlier call to Run(). */
-		void Quit();
 		void Close();
+
+// MessagePump methods:
+		virtual void Run() override;
+		virtual void Quit() override;
+		virtual void ScheduleWork() override;
+		virtual void ScheduleDelayedWork(const std::chrono::steady_clock::time_point& delayed_work_time) override;
+		void OnWakeup();
 
 		bool CreateItemStream (const char* name, std::shared_ptr<item_stream_t> item_stream);
 		bool Resubscribe (RsslChannel* handle);
@@ -199,7 +204,7 @@ namespace kinkan
 		}
 
 	private:
-		bool DoWork();
+		bool DoInternalWork();
 
 		void Connect();
 
@@ -272,6 +277,14 @@ namespace kinkan
 		fd_set in_rfds_, in_wfds_, in_efds_;
 		fd_set out_rfds_, out_wfds_, out_efds_;
 		struct timeval in_tv_, out_tv_;
+
+// The time at which we should call DoDelayedWork.
+		std::chrono::steady_clock::time_point delayed_work_time_;
+                
+// ... write end; ScheduleWork() writes a single byte to it
+		net::SocketDescriptor wakeup_pipe_in_;
+// ... read end; OnWakeup reads it and then breaks Run() out of its sleep
+		net::SocketDescriptor wakeup_pipe_out_;
 
 /* UPA client connection */
 		RsslChannel* connection_;
