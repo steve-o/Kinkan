@@ -159,9 +159,11 @@ kinkan::KinkanHttpServer::OnWebSocketMessage (
 				server_->SendOverWebSocket(connection_id, message);
 			});
 		});
+		return;
 	}
-	chromium::JSONWriter::Write(dict.get(), &response);
+/* default return empty JSON object {} */
 
+	chromium::JSONWriter::Write(dict.get(), &response);
 	server_->SendOverWebSocket(connection_id, response);
 }
 
