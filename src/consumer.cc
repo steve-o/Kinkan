@@ -286,6 +286,8 @@ kinkan::consumer_t::Connect()
 			" }";
 	} else {
 		connection_ = c;
+		component_text_.clear();
+		app_text_.clear();
 /* Set logger ID */
 		std::ostringstream ss;
 		ss << c << ':';
@@ -519,6 +521,9 @@ kinkan::consumer_t::OnActiveSession (
 			" }";
 		return false;
 	}
+
+/* Save some details for instrumentation */
+	component_text_.assign (info.componentInfo[0]->componentVersion.data, info.componentInfo[0]->componentVersion.length);
 
 /* Log connected infrastructure. */
 	std::stringstream components;
@@ -1285,9 +1290,20 @@ kinkan::consumer_t::CreateInfo (
 	kinkan::ConsumerInfo* info
 	)
 {
-/* upstream provider name */
-	info->infrastructure_address.assign ("infrastructure_address");
-	info->infrastructure_version.assign ("infrastructure_version");
+/* address per configuration */
+	info->ip.assign (config_.rssl_server);
+	info->ip.append (":");
+	info->ip.append (config_.upstream_rssl_port);
+
+	if (nullptr != connection_ && RSSL_CH_STATE_ACTIVE == connection_->state) {
+/* on active channel */
+		info->component.assign (component_text_);
+/* on login success */
+		info->app.assign (app_text_);
+	} else {
+		info->component.clear();
+		info->app.clear();
+	}
 
 /* whether consumer is connected, logged in, and active */
 	info->is_active = !is_muted_;
@@ -1854,6 +1870,7 @@ kinkan::consumer_t::OnLoginSuccess (
 		if (0 != (response.refresh.flags & RDM_LG_RFF_HAS_APPLICATION_NAME)) {
 			chromium::StringPiece application_name (response.refresh.applicationName.data,
 								response.refresh.applicationName.length);
+			app_text_.assign (application_name.as_string());
 			LOG(INFO) << prefix_ << "applicationName: \"" << application_name << "\"";
 		}
 	default:

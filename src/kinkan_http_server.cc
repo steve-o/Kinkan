@@ -20,7 +20,18 @@ namespace {
 
 }  // namespace
 
-kinkan::ProviderInfo::ProviderInfo() : pid(0) {
+kinkan::ConsumerInfo::ConsumerInfo()
+	: is_active (false)
+	, msgs_received (0) {
+}
+
+kinkan::ConsumerInfo::~ConsumerInfo() {
+}
+
+kinkan::ProviderInfo::ProviderInfo()
+	: pid (0)
+	, client_count (0)
+	, msgs_received (0) {
 }
 
 kinkan::ProviderInfo::~ProviderInfo() {
@@ -122,13 +133,23 @@ kinkan::KinkanHttpServer::OnWebSocketMessage (
 	std::string response;
 
 	std::shared_ptr<chromium::DictionaryValue> dict(new chromium::DictionaryValue);
-	ProviderInfo info;
-	provider_delegate_->CreateInfo (&info);
-	dict->SetString("hostname", info.hostname);
-	dict->SetString("username", info.username);
-	dict->SetInteger("pid", info.pid);
-	dict->SetInteger("clients", info.client_count);
-	dict->SetInteger("msgs", info.msgs_received);
+	if (data == "p") {
+		ProviderInfo info;
+		provider_delegate_->CreateInfo (&info);
+		dict->SetString("hostname", info.hostname);
+		dict->SetString("username", info.username);
+		dict->SetInteger("pid", info.pid);
+		dict->SetInteger("clients", info.client_count);
+		dict->SetInteger("msgs", info.msgs_received);
+	} else if (data == "c") {
+		ConsumerInfo info;
+		consumer_delegate_->CreateInfo (&info);
+		dict->SetString("ip", info.ip);
+		dict->SetString("component", info.component);
+		dict->SetString("app", info.app);
+		dict->SetBoolean("is_active", info.is_active);
+		dict->SetInteger("msgs", info.msgs_received);
+	}
 	chromium::JSONWriter::Write(dict.get(), &response);
 
 	server_->SendOverWebSocket(connection_id, response);
@@ -260,7 +281,7 @@ kinkan::KinkanHttpServer::GetDiscoveryPageHTML() const
 	ReplaceFirstSubstringAfterOffset (&response, 0, "%USERNAME%", info.username);
 	ReplaceFirstSubstringAfterOffset (&response, 0, "%PID%", std::to_string (info.pid));
 	ReplaceFirstSubstringAfterOffset (&response, 0, "%CLIENTS%", std::to_string (info.client_count));
-	ReplaceFirstSubstringAfterOffset (&response, 0, "%MSGS%", std::to_string (info.msgs_received));
+	ReplaceFirstSubstringAfterOffset (&response, 0, "%PROVIDER_MSGS%", std::to_string (info.msgs_received));
 
 	return response;
 }

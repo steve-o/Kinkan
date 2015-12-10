@@ -78,8 +78,10 @@ class KinkanPoller {
 	SendPoll() {
 		if (this.sock.readyState !== WebSocket.OPEN)
 			return;
-		if (this.sock.bufferedAmount === 0)
-			this.sock.send("!");
+		if (this.sock.bufferedAmount === 0) {
+			this.sock.send("c");
+			this.sock.send("p");
+		}
 	}
 
 	OnMessage(e) {
@@ -89,11 +91,16 @@ class KinkanPoller {
 	}
 
 	OnUpdate(msg) {
-		document.getElementById("hostname").textContent = msg.hostname;
-		document.getElementById("username").textContent = msg.username;
-		document.getElementById("pid").textContent = msg.pid;
-		document.getElementById("clients").textContent = msg.clients;
-		document.getElementById("msgs").textContent = msg.msgs;
+		if (msg.hostname) {
+			document.getElementById("hostname").textContent = msg.hostname;
+			document.getElementById("username").textContent = msg.username;
+			document.getElementById("pid").textContent = msg.pid;
+			document.getElementById("clients").textContent = msg.clients;
+			document.getElementById("provider_msgs").textContent = msg.msgs;
+		} else if (msg.is_active) {
+			document.getElementById("infra").textContent = msg.is_active ? ("connected to " + msg.ip + ";" + msg.app + ";" + msg.component) : "not connected";
+			document.getElementById("consumer_msgs").textContent = msg.msgs;
+		}
 	}
 
 	OnHidden() {

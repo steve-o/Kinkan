@@ -275,6 +275,8 @@ namespace kinkan
 
 /* UPA client connection */
 		RsslChannel* connection_;
+		std::string component_text_;	/* API or TREP component name and version */
+		std::string app_text_;		/* App name */
 /* unique id per connection. */
 		std::string prefix_;
 /* flag that is false until permission is granted to submit data. */

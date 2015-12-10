@@ -29,8 +29,9 @@ namespace kinkan
 		ConsumerInfo();
 		~ConsumerInfo();
 
-		std::string infrastructure_address;	/* e.g. ads2.6.3.L1.linux.rrg 64-bit */
-		std::string infrastructure_version;
+		std::string ip;
+		std::string component;	/* e.g. ads2.6.3.L1.linux.rrg 64-bit */
+		std::string app;	/* e.g. ADS */
 		bool is_active;
 		unsigned msgs_received;
 	};
