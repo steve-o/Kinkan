@@ -20,6 +20,7 @@ class KinkanPoller {
 		new_sock.onclose = (e) => this.OnClose(e);
 		new_sock.onmessage = (e) => this.OnMessage(e);
 		this.sock = new_sock;
+		this.pending_count = 0;
 	}
 
 	OnOpen() {
