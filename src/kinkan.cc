@@ -304,10 +304,23 @@ kinkan::kinkan_t::CheckTrigger (
 static const unsigned target_hour = 11 + 5 - 1;
 	while (RSSL_RET_SUCCESS == (rc = rsslDecodeFieldEntry (&it, &field_entry))) {
 		switch (field_entry.fieldId) {
+/* Unusual decode errors include:
+ *
+ * rsslDecodeTime: { "returnCode": -26, "enumeration": "RSSL_RET_INCOMPLETE_DATA",
+ *                   "text": "Failure: Not enough data was provided." }
+ * rsslDecodeTime: { "returnCode": 15, "enumeration": "RSSL_RET_BLANK_DATA",
+ *                   "text": "Success: Decoded data is a Blank." }
+ *
+ * Blank timestamp should appear pre-market open on exchange reset.
+ */
 #ifdef CONFIG_SECONDS_RESOLUTION
 		case kRdmQuoteTimeId:
 		case kRdmTradeTimeId:
 			rc = rsslDecodeTime (&it, &rssl_time);
+			if (RSSL_RET_BLANK_DATA == rc) {
+				LOG(INFO) << field_entry.fieldId << " = <blank>";
+				return false;
+			}
 			if (RSSL_RET_SUCCESS != rc) {
 				LOG(ERROR) << "rsslDecodeTime: { "
 		                          "\"returnCode\": " << static_cast<signed> (rc) << ""
@@ -320,6 +333,10 @@ static const unsigned target_hour = 11 + 5 - 1;
 		case kRdmQuoteTimeId:
 		case kRdmTradeTimeId:
 			rc = rsslDecodeUInt (&it, &rssl_uint);
+			if (RSSL_RET_BLANK_DATA == rc) {
+				LOG(INFO) << field_entry.fieldId << " = <blank>";
+				return false;
+			}
 			if (RSSL_RET_SUCCESS != rc) {
 				LOG(ERROR) << "rsslDecodeTime: { "
 		                          "\"returnCode\": " << static_cast<signed> (rc) << ""
@@ -336,10 +353,10 @@ static const unsigned target_hour = 11 + 5 - 1;
 			rssl_uint %= 1000;
 			rssl_time.millisecond = rssl_uint;
 #endif
-			LOG(INFO) << field_entry.fieldId << " = " << (unsigned)rssl_time.hour << ':'
-								<< (unsigned)rssl_time.minute << ':'
-								<< (unsigned)rssl_time.second << '.'
-								<< (unsigned)rssl_time.millisecond;
+			LOG(INFO) << field_entry.fieldId << " = " << std::setfill('0') << std::setw(2) << (unsigned)rssl_time.hour << ':'
+								<< std::setfill('0') << std::setw(2) << (unsigned)rssl_time.minute << ':'
+								<< std::setfill('0') << std::setw(2) << (unsigned)rssl_time.second << '.'
+								<< std::setfill('0') << std::setw(3) << (unsigned)rssl_time.millisecond;
 			if (rssl_time.hour >= target_hour) {
 				return true;
 			}
@@ -598,7 +615,11 @@ kinkan::kinkan_t::WriteRaw (
 			" }";
 		return false;
 	}
-	{
+/* Providing a null payload handle sometimes results in the following:
+ *
+ * rsslPayloadEntryRetrieve: { "rsslErrorId": -1, "text": "rsslPayloadEntryRetrieve: invalid inputs" }
+ */
+	if (0 != payload_entry_handle) {
 		RsslCacheError rssl_cache_err;
 		rsslCacheErrorClear (&rssl_cache_err);
                 rc = rsslPayloadEntryRetrieve (payload_entry_handle, &it, nullptr, &rssl_cache_err);

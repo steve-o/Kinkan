@@ -87,6 +87,7 @@ add_definitions(
 	-D_VARIADIC_MAX=10
 # production release
 ##	-DOFFICIAL_BUILD
+##	-DCONFIG_SECONDS_RESOLUTION
 )
 
 # SEH Exceptions.
