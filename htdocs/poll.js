@@ -10,6 +10,7 @@ class KinkanPoller {
 		this.sock = undefined;
 		this.poll_id = undefined;
 		this.reconnect_id = undefined;
+		this.pending_count = 0;
 	}
 
 // WebSocket is immutable, recreate entire object to reconnect.
@@ -81,13 +82,13 @@ class KinkanPoller {
 		if (this.sock.bufferedAmount === 0) {
 			this.sock.send("c");
 			this.sock.send("p");
+			this.pending_count += 2;
 		}
 	}
 
 	OnMessage(e) {
 		let msg = JSON.parse(e.data);
 		window.requestAnimationFrame(() => this.OnUpdate(msg));
-		this.SchedulePoll();
 	}
 
 	OnUpdate(msg) {
@@ -97,10 +98,14 @@ class KinkanPoller {
 			document.getElementById("pid").textContent = msg.pid;
 			document.getElementById("clients").textContent = msg.clients;
 			document.getElementById("provider_msgs").textContent = msg.msgs;
+			this.pending_count--;
 		} else if (msg.is_active) {
-			document.getElementById("infra").textContent = msg.is_active ? ("connected to " + msg.ip + ";" + msg.app + ";" + msg.component) : "not connected";
+			document.getElementById("infra").textContent = msg.is_active ? (msg.ip + ";" + msg.app + ";" + msg.component) : "not connected";
 			document.getElementById("consumer_msgs").textContent = msg.msgs;
+			this.pending_count--;
 		}
+		if (0 == this.pending_count)
+			this.SchedulePoll();
 	}
 
 	OnHidden() {
