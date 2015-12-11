@@ -93,16 +93,16 @@ class KinkanPoller {
 	}
 
 	OnUpdate(msg) {
-		if (msg.hostname) {
+		if (msg.provider_msgs) {
 			document.getElementById("hostname").textContent = msg.hostname;
 			document.getElementById("username").textContent = msg.username;
 			document.getElementById("pid").textContent = msg.pid;
 			document.getElementById("clients").textContent = msg.clients;
-			document.getElementById("provider_msgs").textContent = msg.msgs;
+			document.getElementById("provider_msgs").textContent = msg.provider_msgs;
 			this.pending_count--;
-		} else if (msg.is_active) {
+		} else if (msg.consumer_msgs) {
 			document.getElementById("infra").textContent = msg.is_active ? (msg.ip + ";" + msg.app + ";" + msg.component) : "not connected";
-			document.getElementById("consumer_msgs").textContent = msg.msgs;
+			document.getElementById("consumer_msgs").textContent = msg.consumer_msgs;
 			this.pending_count--;
 		}
 		if (0 == this.pending_count)

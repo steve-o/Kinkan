@@ -3,6 +3,7 @@
 
 #include "kinkan_http_server.hh"
 
+#include "chromium/json/json_reader.hh"
 #include "chromium/json/json_writer.hh"
 #include "chromium/logging.hh"
 #include "chromium/strings/stringprintf.hh"
@@ -142,7 +143,7 @@ kinkan::KinkanHttpServer::OnWebSocketMessage (
 		dict->SetString("username", info.username);
 		dict->SetInteger("pid", info.pid);
 		dict->SetInteger("clients", info.client_count);
-		dict->SetInteger("msgs", info.msgs_received);
+		dict->SetInteger("provider_msgs", info.msgs_received);
 	} else if (data == "c") {
 		consumer_message_loop_->PostTask ([this, connection_id]() {
 			std::string message;
@@ -153,7 +154,7 @@ kinkan::KinkanHttpServer::OnWebSocketMessage (
 			dict->SetString("component", info.component);
 			dict->SetString("app", info.app);
 			dict->SetBoolean("is_active", info.is_active);
-			dict->SetInteger("msgs", info.msgs_received);
+			dict->SetInteger("consumer_msgs", info.msgs_received);
 			chromium::JSONWriter::Write(dict.get(), &message);
 			message_loop_for_io_->PostTask ([this, connection_id, message]() {
 				server_->SendOverWebSocket(connection_id, message);
@@ -224,15 +225,30 @@ kinkan::KinkanHttpServer::OnJsonRequestUI (
 	}
 
 	if ("info" == command) {
-		chromium::DictionaryValue dict;
-		ProviderInfo info;
-		provider_delegate_->CreateInfo (&info);
-		dict.SetString("hostname", info.hostname);
-		dict.SetString("username", info.username);
-		dict.SetInteger("pid", info.pid);
-		dict.SetInteger("clients", info.client_count);
-		dict.SetInteger("msgs", info.msgs_received);
-		SendJson(connection_id, net::HTTP_OK, &dict, std::string());
+		consumer_message_loop_->PostTask ([this, connection_id]() {
+			chromium::DictionaryValue dict;
+			std::string json;
+			ConsumerInfo info;
+			consumer_delegate_->CreateInfo (&info);
+			dict.SetString("ip", info.ip);
+			dict.SetString("component", info.component);
+			dict.SetString("app", info.app);
+			dict.SetBoolean("is_active", info.is_active);
+			dict.SetInteger("consumer_msgs", info.msgs_received);
+			chromium::JSONWriter::Write(&dict, &json);
+			message_loop_for_io_->PostTask ([this, connection_id, json]() {
+				std::unique_ptr<chromium::DictionaryValue> dict (static_cast<chromium::DictionaryValue*>(chromium::JSONReader::Read (json, false)));
+				ProviderInfo info;
+				provider_delegate_->CreateInfo (&info);
+				dict->SetString("hostname", info.hostname);
+				dict->SetString("username", info.username);
+				dict->SetInteger("pid", info.pid);
+				dict->SetInteger("clients", info.client_count);
+				dict->SetInteger("provider_msgs", info.msgs_received);
+				SendJson(connection_id, net::HTTP_OK, dict.get(), std::string());
+			});
+		});
+		return;
 	}
 
 	SendJson(connection_id, net::HTTP_NOT_FOUND, nullptr, "Unknown command: " + command);

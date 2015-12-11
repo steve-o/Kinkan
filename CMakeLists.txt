@@ -138,6 +138,7 @@ set(chromium-sources
 	src/chromium/files/file.cc
 	src/chromium/files/file_util.cc
 	src/chromium/files/file_util_win.cc
+	src/chromium/json/json_reader.cc
 	src/chromium/json/json_writer.cc
 	src/chromium/json/string_escape.cc
 	src/chromium/md5.cc
