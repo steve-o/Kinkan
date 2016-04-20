@@ -386,7 +386,7 @@ kinkan::consumer_t::Connect()
 			  "\"rsslErrorId\": " << rssl_err.rsslErrorId << ""
 			", \"sysError\": " << rssl_err.sysError << ""
 			", \"text\": \"" << rssl_err.text << "\""
-			", \"connectionInfo\": " << addr.connectionInfo << ""
+			", \"connectionInfo\": { " << addr.connectionInfo.unified << " } "
 			", \"protocolType\": " << addr.protocolType << ""
 			", \"majorVersion\": " << addr.majorVersion << ""
 			", \"minorVersion\": " << addr.minorVersion << ""
@@ -408,7 +408,8 @@ kinkan::consumer_t::Connect()
 		cumulative_stats_[CONSUMER_PC_CONNECTION_ACCEPTED]++;
 
 		LOG(INFO) << "RSSL socket created: { "
-			  "\"connectionType\": \"" << internal::connection_type_string (c->connectionType) << "\""
+			  "\"connectionInfo\": { " << addr.connectionInfo.unified << " } "
+			", \"connectionType\": \"" << internal::connection_type_string (c->connectionType) << "\""
 			", \"majorVersion\": " << static_cast<unsigned> (c->majorVersion) << ""
 			", \"minorVersion\": " << static_cast<unsigned> (c->minorVersion) << ""
 			", \"pingTimeout\": " << c->pingTimeout << ""

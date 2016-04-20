@@ -747,17 +747,8 @@ std::ostream& operator<< (std::ostream& o, const RsslUnifiedNetwork& unified) {
 	o << "\"RsslUnifiedNetwork\": { "
 		  "\"address\": \"" << unified.address << "\""
 		", \"serviceName\": \"" << unified.serviceName << "\""
-		", \"unicastServiceName\": \"" << unified.unicastServiceName << "\""
-		", \"interfaceName\": \"" << unified.interfaceName << "\""
-	" }";
-	return o;
-}
-
-inline
-std::ostream& operator<< (std::ostream& o, const RsslConnectionInfo& connectionInfo) {
-	o << "\"RsslConnectionInfo\": { "
-		  "\"segmented\": " << connectionInfo.segmented << ""
-		", \"unified\": " << connectionInfo.unified << ""
+		", \"unicastServiceName\": \"" << (unified.unicastServiceName ? unified.unicastServiceName : "") << "\""
+		", \"interfaceName\": \"" << (unified.interfaceName ? unified.interfaceName : "") << "\""
 	" }";
 	return o;
 }
